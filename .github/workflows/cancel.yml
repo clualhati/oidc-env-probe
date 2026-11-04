@@ -1,0 +1,13 @@
+name: cancel
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  cancel-me:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: waits to be cancelled
+        run: sleep 240
+      - name: restore
+        if: ${{ failure() || cancelled() }}
+        run: echo "RESTORE_RAN after cancel"
