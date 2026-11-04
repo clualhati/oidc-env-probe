@@ -1,0 +1,31 @@
+name: probe
+on:
+  workflow_dispatch:
+  push:
+    branches: ['**']
+    tags: ['**']
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  env-job:
+    runs-on: ubuntu-24.04
+    environment: test-env
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: claims
+        run: node -e "(async()=>{const r=await fetch(process.env.ACTIONS_ID_TOKEN_REQUEST_URL+'&audience=sts.amazonaws.com',{headers:{authorization:'Bearer '+process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN}});const t=(await r.json()).value;const c=JSON.parse(Buffer.from(t.split('.')[1],'base64url'));console.log('CLAIMS '+JSON.stringify({sub:c.sub,ref:c.ref,ref_type:c.ref_type,environment:c.environment,event:c.event_name,workflow_ref:c.workflow_ref}))})()"
+      - name: env var
+        env:
+          PROBE: ${{ vars.PROBE_VAR }}
+        run: echo "ENVVAR [$PROBE]"
+  plain-job:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: claims
+        run: node -e "(async()=>{const r=await fetch(process.env.ACTIONS_ID_TOKEN_REQUEST_URL+'&audience=sts.amazonaws.com',{headers:{authorization:'Bearer '+process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN}});const t=(await r.json()).value;const c=JSON.parse(Buffer.from(t.split('.')[1],'base64url'));console.log('CLAIMS '+JSON.stringify({sub:c.sub,ref:c.ref,ref_type:c.ref_type,environment:c.environment,event:c.event_name,workflow_ref:c.workflow_ref}))})()"
