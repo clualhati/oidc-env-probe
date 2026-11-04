@@ -10,7 +10,7 @@ permissions:
 jobs:
   env-job:
     runs-on: ubuntu-24.04
-    environment: test-env
+    environment: another-env
     permissions:
       contents: read
       id-token: write
