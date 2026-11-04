@@ -1,0 +1,18 @@
+name: chrome
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  chrome:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: exact flags, no sysctl, no no-sandbox
+        run: |
+          cat > /tmp/gl.html <<'EOF'
+          <script>const c=document.createElement('canvas');const g=c.getContext('webgl2')||c.getContext('webgl');document.title=g?'WEBGL_OK '+g.getParameter(g.VERSION):'WEBGL_NONE';document.write('<pre>'+document.title+'</pre>')</script>
+          EOF
+          timeout 90 google-chrome --headless=new --disable-dev-shm-usage --use-angle=swiftshader --enable-unsafe-swiftshader --virtual-time-budget=3000 --dump-dom file:///tmp/gl.html >/tmp/out.html 2>/tmp/err.log; echo "EXIT [$?]"
+          echo "RESULT [$(grep -o 'WEBGL_[A-Z]*[^<]*' /tmp/out.html | head -1)]"
+          echo "SANDBOX_MSG [$(grep -i -m1 'sandbox' /tmp/err.log | cut -c1-120)]"
+          echo "APPARMOR [$(sysctl -n kernel.apparmor_restrict_unprivileged_userns)]"
+          ps -eo args | grep -c 'no-sandbox' | sed 's/^/NO_SANDBOX_PROCS /'
