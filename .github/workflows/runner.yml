@@ -1,0 +1,54 @@
+name: runner
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  capabilities:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          filter: blob:none
+          sparse-checkout: |
+            /deploy/
+            /.github/
+          sparse-checkout-cone-mode: false
+      - name: checkout and history
+        run: |
+          echo "SHA [$GITHUB_SHA]"
+          echo "SHALLOW [$(git rev-parse --is-shallow-repository)]"
+          echo "TOPDIRS [$(ls -A | tr '\n' ' ')]"
+          echo "HISTORY [$(GIT_NO_LAZY_FETCH=1 git log --first-parent --format=%h "$GITHUB_SHA" -- deploy/approvals/R1.json | tr '\n' ' ')]"
+      - name: tools
+        run: |
+          echo "NODE [$(node --version)]"
+          echo "AWSCLI [$(aws --version 2>&1)]"
+          aws cloudfront-keyvaluestore put-key help >/dev/null 2>&1; echo "KVS_CMD [$?]"
+          aws s3api put-object help 2>/dev/null | grep -q if-none-match; echo "IFNONEMATCH [$?]"
+          echo "UNZIP [$(unzip -v | head -1)]"
+          echo "CHROME [$(google-chrome --version)]"
+      - name: chrome sandbox, before and after the sysctl
+        run: |
+          timeout 60 google-chrome --headless=new --disable-dev-shm-usage --dump-dom about:blank >/dev/null 2>/tmp/before.log; echo "CHROME_BEFORE [$?] $(grep -i -m1 sandbox /tmp/before.log | cut -c1-100)"
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          timeout 60 google-chrome --headless=new --disable-dev-shm-usage --use-angle=swiftshader --enable-unsafe-swiftshader --dump-dom about:blank >/dev/null 2>/tmp/after.log; echo "CHROME_AFTER [$?] $(grep -i -m1 sandbox /tmp/after.log | cut -c1-100)"
+  step-timeout:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: hangs past its step timeout
+        timeout-minutes: 1
+        run: sleep 150
+      - name: restore
+        if: ${{ failure() || cancelled() }}
+        run: echo "RESTORE_RAN after step timeout"
+  job-timeout:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 1
+    steps:
+      - name: hangs past the job timeout
+        run: sleep 150
+      - name: restore
+        if: ${{ failure() || cancelled() }}
+        run: echo "RESTORE_RAN after job timeout"
